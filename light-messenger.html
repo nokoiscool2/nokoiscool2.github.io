@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beacon — Light-Coded Messaging</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+  :root{
+    --bg:#0a0c0f;
+    --panel:#12151a;
+    --panel-2:#171b21;
+    --border:#242a31;
+    --text:#e6e9ec;
+    --muted:#7c8792;
+    --accent:#34e0a1;
+    --accent-dim:rgba(52,224,161,0.14);
+    --warn:#ff6b5e;
+    --mono:'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+    --disp:'Space Grotesk', -apple-system, 'Segoe UI', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(circle at 15% -10%, rgba(52,224,161,0.06), transparent 45%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--disp);
+    min-height:100vh;
+    padding:28px 16px 60px;
+  }
+  .wrap{max-width:640px;margin:0 auto;}
+
+  header{margin-bottom:22px;}
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;
+    letter-spacing:.18em;
+    color:var(--accent);
+    text-transform:uppercase;
+    display:flex;align-items:center;gap:8px;
+    margin-bottom:8px;
+  }
+  .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);}
+  h1{font-size:28px;font-weight:700;margin:0 0 6px;letter-spacing:-0.01em;}
+  .sub{color:var(--muted);font-size:14px;line-height:1.5;max-width:52ch;}
+
+  .tabs{
+    display:flex;gap:2px;background:var(--panel-2);border:1px solid var(--border);
+    border-radius:10px;padding:3px;margin:22px 0 18px;
+  }
+  .tab{
+    flex:1;text-align:center;padding:10px 8px;border-radius:8px;cursor:pointer;
+    font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--muted);
+    transition:all .15s ease;user-select:none;
+  }
+  .tab .n{opacity:.55;margin-right:6px;}
+  .tab.active{background:var(--panel);color:var(--text);box-shadow:0 0 0 1px var(--border) inset;}
+  .tab.active .n{color:var(--accent);opacity:1;}
+
+  .panel{
+    background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    padding:20px;margin-bottom:16px;
+  }
+  .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);
+    font-family:var(--mono);font-weight:500;margin:0 0 14px;}
+
+  label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-family:var(--mono);}
+  textarea, input[type="text"]{
+    width:100%;background:var(--panel-2);border:1px solid var(--border);border-radius:8px;
+    color:var(--text);padding:11px 12px;font-family:var(--disp);font-size:14px;resize:vertical;
+    outline:none;
+  }
+  textarea:focus, input[type="text"]:focus{border-color:var(--accent);}
+  .row{display:flex;gap:12px;align-items:center;margin-top:14px;flex-wrap:wrap;}
+  .field{flex:1;min-width:150px;}
+  input[type="range"]{width:100%;accent-color:var(--accent);}
+  .rangeval{font-family:var(--mono);font-size:12px;color:var(--accent);}
+
+  .checkline{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);font-family:var(--mono);}
+  .checkline input{accent-color:var(--accent);}
+
+  button{
+    font-family:var(--mono);font-size:13px;letter-spacing:.05em;text-transform:uppercase;
+    border:1px solid var(--border);background:var(--panel-2);color:var(--text);
+    padding:11px 18px;border-radius:8px;cursor:pointer;transition:all .15s ease;
+  }
+  button:hover{border-color:var(--accent);color:var(--accent);}
+  button.primary{background:var(--accent);color:#06110c;border-color:var(--accent);font-weight:600;}
+  button.primary:hover{filter:brightness(1.08);color:#06110c;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+  button:disabled:hover{border-color:var(--border);color:var(--text);}
+
+  /* Beacon */
+  .beacon-stage{display:flex;flex-direction:column;align-items:center;gap:14px;margin:6px 0 4px;}
+  .beacon-ring{
+    position:relative;width:200px;height:200px;border-radius:26px;
+    display:flex;align-items:center;justify-content:center;
+    background:#000;border:1px solid var(--border);
+    transition:background-color .06s linear;
+    box-shadow:0 0 0 1px rgba(255,255,255,0.02) inset;
+  }
+  .beacon-ring.idle::before{
+    content:'';position:absolute;inset:-1px;border-radius:26px;
+    box-shadow:0 0 0 0 var(--accent-dim);
+    animation:pulse 2.2s ease-out infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(52,224,161,0.25);}
+    100%{box-shadow:0 0 0 18px rgba(52,224,161,0);}
+  }
+  .beacon-label{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.1em;}
+  .beacon-label b{color:var(--text);}
+
+  .progress-track{width:100%;height:4px;background:var(--panel-2);border-radius:4px;overflow:hidden;margin-top:14px;}
+  .progress-fill{height:100%;width:0%;background:var(--accent);transition:width .1s linear;}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:16px;font-family:var(--mono);font-size:11px;color:var(--muted);}
+  .legend span{display:inline-flex;align-items:center;gap:6px;}
+  .sw{width:10px;height:10px;border-radius:3px;display:inline-block;}
+
+  /* Receiver */
+  .cam-frame{
+    position:relative;width:100%;aspect-ratio:4/3;background:#000;border-radius:14px;
+    overflow:hidden;border:1px solid var(--border);
+  }
+  video{width:100%;height:100%;object-fit:cover;display:block;}
+  .cam-target{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:34%;height:34%;border:2px dashed rgba(255,255,255,0.55);border-radius:10px;
+    pointer-events:none;
+  }
+  .cam-overlay{
+    position:absolute;bottom:10px;left:10px;right:10px;display:flex;justify-content:space-between;
+    align-items:center;font-family:var(--mono);font-size:11px;color:#fff;
+    background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);padding:8px 10px;border-radius:8px;
+  }
+  .state-pill{display:flex;align-items:center;gap:6px;}
+  .state-dot{width:8px;height:8px;border-radius:50%;background:var(--muted);}
+  .state-dot.on{background:var(--accent);box-shadow:0 0 6px var(--accent);}
+  .detected-swatch{width:16px;height:16px;border-radius:4px;border:1px solid rgba(255,255,255,0.3);}
+
+  .decoded-box{
+    margin-top:16px;background:var(--panel-2);border:1px solid var(--border);border-radius:10px;
+    padding:14px;min-height:52px;font-size:15px;line-height:1.5;
+  }
+  .decoded-box.empty{color:var(--muted);font-family:var(--mono);font-size:12px;}
+  .log{margin-top:10px;display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;}
+  .log-item{font-family:var(--mono);font-size:11px;color:var(--muted);border-left:2px solid var(--border);padding-left:8px;}
+  .log-item b{color:var(--text);font-family:var(--disp);font-size:13px;}
+
+  .hint{font-size:12px;color:var(--muted);line-height:1.6;margin-top:12px;}
+  .hint b{color:var(--text);}
+
+  .hidden{display:none !important;}
+  footer{text-align:center;color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:.08em;margin-top:24px;opacity:.6;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow"><span class="dot"></span>VISIBLE LIGHT COMMS</div>
+    <h1>Beacon</h1>
+    <div class="sub">Turns text into a sequence of colored flashes on one screen, then decodes them back to text through another device's camera. No radio, no wifi — just light.</div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="send"><span class="n">01</span>Send</div>
+    <div class="tab" data-tab="receive"><span class="n">02</span>Receive</div>
+  </div>
+
+  <!-- SEND -->
+  <div id="panel-send">
+    <div class="panel">
+      <h2>Message</h2>
+      <label for="msgInput">Text to transmit (up to 120 characters)</label>
+      <textarea id="msgInput" rows="3" maxlength="120" placeholder="Type something to send as light...">HELLO WORLD</textarea>
+
+      <div class="row">
+        <div class="field">
+          <label>Flash speed — <span class="rangeval" id="speedVal">380ms / symbol</span></label>
+          <input type="range" id="speedRange" min="150" max="800" step="10" value="380">
+        </div>
+      </div>
+      <div class="row">
+        <label class="checkline"><input type="checkbox" id="loopCheck"> Repeat transmission until stopped</label>
+      </div>
+
+      <div class="row">
+        <button class="primary" id="sendBtn">▶ Start transmitting</button>
+        <button id="stopSendBtn" disabled>■ Stop</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Beacon output</h2>
+      <div class="beacon-stage">
+        <div class="beacon-ring idle" id="beaconRing"></div>
+        <div class="beacon-label" id="beaconLabel">Idle — press start, then point a phone camera at this square, filling the frame with it.</div>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="legend">
+        <span><span class="sw" style="background:#ff2b2b"></span>00</span>
+        <span><span class="sw" style="background:#22e04a"></span>01</span>
+        <span><span class="sw" style="background:#2a6bff"></span>10</span>
+        <span><span class="sw" style="background:#f5e400"></span>11</span>
+        <span><span class="sw" style="background:#000;border:1px solid #333"></span>idle / frame gap</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECEIVE -->
+  <div id="panel-receive" class="hidden">
+    <div class="panel">
+      <h2>Camera</h2>
+      <div class="cam-frame" id="camFrame">
+        <video id="video" autoplay playsinline muted></video>
+        <div class="cam-target"></div>
+        <div class="cam-overlay">
+          <div class="state-pill"><span class="state-dot" id="stateDot"></span><span id="stateText">idle</span></div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="detected-swatch" id="detectedSwatch"></span>
+            <span id="detectedLabel">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="primary" id="camBtn">Enable camera</button>
+        <button id="resetLogBtn">Clear log</button>
+      </div>
+      <div class="hint">Align the dashed box over the sender's beacon so it fills as much of the frame as possible. Dim, even room lighting works best — avoid glare and auto-focus hunting.</div>
+    </div>
+
+    <div class="panel">
+      <h2>Decoded message</h2>
+      <div class="decoded-box empty" id="decodedBox">Nothing decoded yet — waiting for a transmission…</div>
+      <div class="log" id="logList"></div>
+    </div>
+  </div>
+
+  <footer>4-COLOR / 2-BIT PER SYMBOL PROTOCOL · EXPERIMENTAL, LINE-OF-SIGHT ONLY</footer>
+</div>
+
+<script>
+(function(){
+  // ---------- Shared protocol ----------
+  const SYMBOLS = ['RED','GREEN','BLUE','YELLOW']; // 00,01,10,11
+  const SYMBOL_RGB = { RED:[255,43,43], GREEN:[34,224,74], BLUE:[42,107,255], YELLOW:[245,228,0], BLACK:[0,0,0] };
+
+  function textToSymbols(text){
+    const bytes = Array.from(new TextEncoder().encode(text));
+    const len = Math.min(bytes.length, 255);
+    const payload = [len, ...bytes.slice(0, len)];
+    const symbols = [];
+    for(const byte of payload){
+      for(const shift of [6,4,2,0]){
+        symbols.push(SYMBOLS[(byte >> shift) & 0b11]);
+      }
+    }
+    return symbols;
+  }
+
+  function symbolsToText(symbols){
+    if(symbols.length < 4) return null;
+    const bits = [];
+    for(const s of symbols){
+      const idx = SYMBOLS.indexOf(s);
+      if(idx < 0) return null;
+      bits.push(idx);
+    }
+    const bytes = [];
+    for(let i=0; i+3 < bits.length; i+=4){
+      bytes.push((bits[i]<<6)|(bits[i+1]<<4)|(bits[i+2]<<2)|bits[i+3]);
+    }
+    if(bytes.length < 1) return null;
+    const len = bytes[0];
+    const msgBytes = bytes.slice(1, 1+len);
+    if(msgBytes.length < len) return {partial:true, got:msgBytes.length, expected:len};
+    try{
+      return {text: new TextDecoder().decode(new Uint8Array(msgBytes)), expected: len};
+    }catch(e){ return null; }
+  }
+
+  // ---------- Tabs ----------
+  const tabs = document.querySelectorAll('.tab');
+  const panels = { send: document.getElementById('panel-send'), receive: document.getElementById('panel-receive') };
+  tabs.forEach(t => t.addEventListener('click', () => {
+    tabs.forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    Object.keys(panels).forEach(k=>panels[k].classList.toggle('hidden', k !== t.dataset.tab));
+  }));
+
+  // ---------- Sender ----------
+  const msgInput = document.getElementById('msgInput');
+  const speedRange = document.getElementById('speedRange');
+  const speedVal = document.getElementById('speedVal');
+  const loopCheck = document.getElementById('loopCheck');
+  const sendBtn = document.getElementById('sendBtn');
+  const stopSendBtn = document.getElementById('stopSendBtn');
+  const beaconRing = document.getElementById('beaconRing');
+  const beaconLabel = document.getElementById('beaconLabel');
+  const progressFill = document.getElementById('progressFill');
+
+  speedRange.addEventListener('input', () => speedVal.textContent = speedRange.value + 'ms / symbol');
+
+  let txTimer = null, txRunning = false;
+
+  function setBeaconColor(rgb){
+    beaconRing.style.background = rgb ? `rgb(${rgb[0]},${rgb[1]},${rgb[2]})` : '#000';
+  }
+
+  function stopTransmit(){
+    txRunning = false;
+    clearTimeout(txTimer);
+    setBeaconColor(null);
+    beaconRing.classList.add('idle');
+    beaconLabel.textContent = 'Idle — press start, then point a phone camera at this square, filling the frame with it.';
+    progressFill.style.width = '0%';
+    sendBtn.disabled = false;
+    stopSendBtn.disabled = true;
+  }
+
+  function startTransmit(){
+    const text = msgInput.value.trim();
+    if(!text){ return; }
+    const symbols = textToSymbols(text);
+    const duration = parseInt(speedRange.value, 10);
+    txRunning = true;
+    sendBtn.disabled = true;
+    stopSendBtn.disabled = false;
+    beaconRing.classList.remove('idle');
+
+    function runOnce(onComplete){
+      let i = -1; // -1 = leading black gap
+      const total = symbols.length;
+      function step(){
+        if(!txRunning) return;
+        if(i === -1){
+          setBeaconColor(SYMBOL_RGB.BLACK);
+          beaconLabel.textContent = 'Starting…';
+          progressFill.style.width = '0%';
+        } else if(i < total){
+          const sym = symbols[i];
+          setBeaconColor(SYMBOL_RGB[sym]);
+          beaconLabel.textContent = `Sending symbol ${i+1} / ${total} — code ${SYMBOLS.indexOf(sym).toString(2).padStart(2,'0')}`;
+          progressFill.style.width = Math.round(((i+1)/total)*100) + '%';
+        } else {
+          setBeaconColor(SYMBOL_RGB.BLACK);
+          beaconLabel.textContent = 'Done — end gap';
+        }
+        i++;
+        if(i > total){
+          onComplete();
+          return;
+        }
+        txTimer = setTimeout(step, duration);
+      }
+      step();
+    }
+
+    function loopRunner(){
+      if(!txRunning) return;
+      runOnce(() => {
+        if(!txRunning) return;
+        if(loopCheck.checked){
+          txTimer = setTimeout(loopRunner, duration);
+        } else {
+          stopTransmit();
+        }
+      });
+    }
+    loopRunner();
+  }
+
+  sendBtn.addEventListener('click', startTransmit);
+  stopSendBtn.addEventListener('click', stopTransmit);
+
+  // ---------- Receiver ----------
+  const camBtn = document.getElementById('camBtn');
+  const video = document.getElementById('video');
+  const stateDot = document.getElementById('stateDot');
+  const stateText = document.getElementById('stateText');
+  const detectedSwatch = document.getElementById('detectedSwatch');
+  const detectedLabel = document.getElementById('detectedLabel');
+  const decodedBox = document.getElementById('decodedBox');
+  const logList = document.getElementById('logList');
+  const resetLogBtn = document.getElementById('resetLogBtn');
+
+  const sampleCanvas = document.createElement('canvas');
+  sampleCanvas.width = 60; sampleCanvas.height = 45;
+  const sctx = sampleCanvas.getContext('2d', { willReadFrequently: true });
+
+  let stream = null, rafId = null;
+  let candidate = null, candidateCount = 0, stableSymbol = null;
+  let receiving = false, sequence = [];
+  const STABLE_FRAMES = 4;
+  const BLACK_THRESH = 55;
+
+  function classify(r,g,b){
+    const bright = (r+g+b)/3;
+    if(bright < BLACK_THRESH) return 'BLACK';
+    if(r>140 && g>140 && b<110) return 'YELLOW';
+    if(r>130 && g<110 && b<110) return 'RED';
+    if(g>130 && r<110 && b<110) return 'GREEN';
+    if(b>130 && r<110 && g<110) return 'BLUE';
+    return null; // ambiguous / transition frame — ignored
+  }
+
+  function setState(recv){
+    stateDot.classList.toggle('on', recv);
+    stateText.textContent = recv ? 'receiving' : 'idle';
+  }
+
+  function pushLog(result, symCount){
+    const time = new Date().toLocaleTimeString();
+    const div = document.createElement('div');
+    div.className = 'log-item';
+    if(result && result.text !== undefined){
+      div.innerHTML = `<b>"${escapeHtml(result.text)}"</b><br>${time} · ${symCount} symbols`;
+      decodedBox.classList.remove('empty');
+      decodedBox.textContent = result.text;
+    } else if(result && result.partial){
+      div.innerHTML = `<b style="color:var(--warn)">Incomplete</b> — got ${result.got}/${result.expected} bytes<br>${time}`;
+    } else {
+      div.innerHTML = `<b style="color:var(--warn)">Decode failed</b><br>${time} · ${symCount} symbols`;
+    }
+    logList.prepend(div);
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function onStableChange(sym){
+    if(sym === 'BLACK'){
+      if(receiving){
+        const result = symbolsToText(sequence);
+        pushLog(result, sequence.length);
+        receiving = false;
+        setState(false);
+        sequence = [];
+      }
+    } else {
+      if(!receiving){
+        receiving = true;
+        sequence = [];
+        setState(true);
+      }
+      sequence.push(sym);
+    }
+  }
+
+  function sampleLoop(){
+    if(!stream) return;
+    sctx.drawImage(video, 0, 0, sampleCanvas.width, sampleCanvas.height);
+    const w = sampleCanvas.width, h = sampleCanvas.height;
+    const boxW = Math.round(w*0.34), boxH = Math.round(h*0.34);
+    const x0 = Math.round((w-boxW)/2), y0 = Math.round((h-boxH)/2);
+    const data = sctx.getImageData(x0, y0, boxW, boxH).data;
+    let r=0,g=0,b=0,n=0;
+    for(let i=0;i<data.length;i+=4){ r+=data[i]; g+=data[i+1]; b+=data[i+2]; n++; }
+    r=Math.round(r/n); g=Math.round(g/n); b=Math.round(b/n);
+
+    detectedSwatch.style.background = `rgb(${r},${g},${b})`;
+
+    const c = classify(r,g,b);
+    if(c){
+      detectedLabel.textContent = c.toLowerCase();
+      if(c === candidate){ candidateCount++; } else { candidate = c; candidateCount = 1; }
+      if(candidateCount === STABLE_FRAMES && candidate !== stableSymbol){
+        stableSymbol = candidate;
+        onStableChange(stableSymbol);
+      }
+    } else {
+      detectedLabel.textContent = '…';
+    }
+
+    rafId = requestAnimationFrame(sampleLoop);
+  }
+
+  camBtn.addEventListener('click', async () => {
+    if(stream){
+      stream.getTracks().forEach(t=>t.stop());
+      stream = null;
+      cancelAnimationFrame(rafId);
+      camBtn.textContent = 'Enable camera';
+      setState(false);
+      return;
+    }
+    try{
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      video.srcObject = stream;
+      camBtn.textContent = 'Disable camera';
+      candidate = null; candidateCount = 0; stableSymbol = null; receiving = false; sequence = [];
+      sampleLoop();
+    }catch(err){
+      detectedLabel.textContent = 'camera error';
+      alert('Could not access the camera: ' + err.message);
+    }
+  });
+
+  resetLogBtn.addEventListener('click', () => {
+    logList.innerHTML = '';
+    decodedBox.classList.add('empty');
+    decodedBox.textContent = 'Nothing decoded yet — waiting for a transmission…';
+  });
+})();
+</script>
+</body>
+</html>
